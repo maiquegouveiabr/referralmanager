@@ -39,13 +39,11 @@ async function getPeople(url) {
   }
 }
 
-const peopleArr = await getPeople('https://referralmanager.churchofjesuschrist.org/services/people/mission/14319')
-
 async function fetchMultipleUrls(peopleArr) {
   const urls = persons.map(peopleArr => 'https://referralmanager.churchofjesuschrist.org/services/people/' + person.personGuid)
   const response = await Promise.all(urls.map(url => fetch(url)))
   const data = await Promise.all(response.map(res => res.json()))
-
+  
   const persons = data.map(item => {
     const person = item.person
     return {
@@ -63,10 +61,10 @@ async function fetchMultipleUrls(peopleArr) {
   return persons.map(person => {
     return `
     <div class="listItem">
-      <a href="${'https://referralmanager.churchofjesuschrist.org/person/' + person.id}">${person.name}</a><br />
-      <span><strong>Create Date:</strong> ${person.createDate}</span><br />
-      <span><strong>Phone Number:</strong> ${person.phoneNumber}</span><br />
-      <span><strong>Address:</strong> ${person.address}</span>
+    <a href="${'https://referralmanager.churchofjesuschrist.org/person/' + person.id}">${person.name}</a><br />
+    <span><strong>Create Date:</strong> ${person.createDate}</span><br />
+    <span><strong>Phone Number:</strong> ${person.phoneNumber}</span><br />
+    <span><strong>Address:</strong> ${person.address}</span>
     </div>
     `
   })
@@ -74,10 +72,10 @@ async function fetchMultipleUrls(peopleArr) {
 
 async function fetchByOrgId(peopleArr, orgId){
   const urls = peopleArr.map(person => `https://referralmanager.churchofjesuschrist.org/services/mission/assignment?address=${person.address}&langCd=por`)
-
+  
   const responses = await Promise.all(urls.map(url => fetch(url)))
   const data = await Promise.all(responses.map(res => res.json()))
-
+  
   const proselytingAreas = data.map(item => item.proselytingAreas ? item : {})
   const newPeople = peopleArr.map((person, index) => {
     return {
@@ -90,14 +88,16 @@ async function fetchByOrgId(peopleArr, orgId){
   return newPeople.sort((a, b) => b.timestamp - a.timestamp).map(person => {
     return `
     <div class="listItem">
-      <a href="${'https://referralmanager.churchofjesuschrist.org/person/' + person.personGuid}">${person.firstName}</a><br />
-      <span><strong>Create Date:</strong> ${timestampToDate(person.timestamp)}</span><br />
-      <span><strong>Address:</strong> ${person.address}</span><br />
-      <span><strong>Suggested Ward:</strong> ${person.proselytingArea.organizations[0].name}</span><br />
-      <span><strong>Suggested Area:</strong> ${person.proselytingArea.proselytingAreas[0].name}</span>
+    <a href="${'https://referralmanager.churchofjesuschrist.org/person/' + person.personGuid}">${person.firstName}</a><br />
+    <span><strong>Create Date:</strong> ${timestampToDate(person.timestamp)}</span><br />
+    <span><strong>Address:</strong> ${person.address}</span><br />
+    <span><strong>Suggested Ward:</strong> ${person.proselytingArea.organizations[0].name}</span><br />
+    <span><strong>Suggested Area:</strong> ${person.proselytingArea.proselytingAreas[0].name}</span>
     </div>`
   })
 }
+
+const peopleArr = await getPeople('https://referralmanager.churchofjesuschrist.org/services/people/mission/14319')
 
 const realData = await fetchByOrgId(peopleArr, 31859)
 
