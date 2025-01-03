@@ -1,26 +1,6 @@
 // https://referralmanager.churchofjesuschrist.org/services/people/mission/14319
 const preElement = document.querySelector('body');
 
-const cityList = [
-  "Agronomica", "Alvorada", "Arapoti", "Arapuã", "Araucária", "Barbosa Ferraz", "Barrerinhas",
-  "Cândido De Abreu", "Cambé", "Campo Belo", "Campo Mourão", "Caninhas", "Canoinhas", "Catuporanga",
-  "Cerro Azul", "Colonia", "Corumbataí do Sul", "Curíuva", "Dr. Ulysses", "Escritório", "Faxinal",
-  "Fernandes Pinheiro", "Fênix", "Figueira", "Godoy Moreira", "Grande Rio", "Grandes Rios", "Guarani A",
-  "Guaraqueçaba", "Guaretá", "Ibaiti", "Ipanema", "Irati", "Iratema", "Iretama", "Itajaí 1", "Itaiti",
-  "Ivaí", "Ivaiporã", "Ivai", "Ivaiaporã", "Ivaiapora", "Ivaiaróa", "Ivateira", "Ivatéia", "Iveteira",
-  "Jaboti", "Jaguaraiava", "Jaguaraiaíva", "Jaguariaíva", "Jaguariaiva", "Japira", "Jardim Alegre", "Jardim Araucaria",
-  "Jardim Da Ordem", "Jardim Alvorada", "Juiz De Fora 2", "Limão B", "Lunardelli", "Luiz Alves", "Lidianópolis", "Manhuaçu",
-  "Manoel Ribas", "Mondubin", "Niterói 1", "Nova Tebas", "Ortigueira", "Parque Dos Tropeiros", "Parque Iguaçu",
-  "Paraíso", "Patos 1", "Piacaguera", "Pinhalão", "Pioneiros B", "Pôrto Amazonas",
-  "Rio Do Sul", "Rio Do Tigre", "Santa Ângelo 2", "Santa Cruz", "Sapopema", "São Francisco Do Sul",
-  "São João Do Ivaí", "Siqueira Campos", "Teixeira Soares", "Teofilo Otoni 1", "Tomazina", "Tunas Do Paraná",
-  "União Da Vitória", "Umuarama", "Votuporanga", "Wenceslau Braz", "Balsa Nova"
-];
-
-const isAddressInCityList = (address) => {
-  return cityList.some(city => address?.includes(city));
-};
-
 function hasNumber(str) {
   return /\d/.test(str);
 }
@@ -43,7 +23,7 @@ function timestampToDate(timestamp) {
   return formattedDate;
 }
 
-async function getPeople(url, isUba, hasAnyNumber) {
+async function getPeople(url) {
   try {
     const response = await fetch(url)
     if (!response.ok) {
@@ -52,33 +32,22 @@ async function getPeople(url, isUba, hasAnyNumber) {
     const json = await response.json()
     const persons = json.persons.filter(person => !person.areaId)
 
-    if (isUba) {
-      const filteredPersons = persons.filter(person => isAddressInCityList(person.address))
-      return filteredPersons
-    } else if (hasAnyNumber) {
-      const filteredPersons = persons.filter(person => !isAddressInCityList(person.address) && hasNumber(person.address))
-      return filteredPersons
-    } else {
-      const filteredPersons = persons.filter(person => !isAddressInCityList(person.address))
-      return filteredPersons
-    }
+    return persons
   } catch (error) {
     console.error(error.message);
     return []
   }
 }
 
-const persons = await getPeople('https://referralmanager.churchofjesuschrist.org/services/people/mission/14319', true, false)
-const urls = persons.map(person => 'https://referralmanager.churchofjesuschrist.org/services/people/' + person.personGuid)
+const peopleArr = await getPeople('https://referralmanager.churchofjesuschrist.org/services/people/mission/14319')
 
-
-async function fetchMultipleUrls(urls) {
+async function fetchMultipleUrls(peopleArr) {
+  const urls = persons.map(peopleArr => 'https://referralmanager.churchofjesuschrist.org/services/people/' + person.personGuid)
   const response = await Promise.all(urls.map(url => fetch(url)))
   const data = await Promise.all(response.map(res => res.json()))
 
   const persons = data.map(item => {
     const person = item.person
-
     return {
       id: person.id,
       name: person.firstName,
@@ -103,5 +72,33 @@ async function fetchMultipleUrls(urls) {
   })
 }
 
-const realData = await fetchMultipleUrls(urls)
+async function fetchByOrgId(peopleArr, orgId){
+  const urls = peopleArr.map(person => `https://referralmanager.churchofjesuschrist.org/services/mission/assignment?address=${person.address}&langCd=por`)
+
+  const responses = await Promise.all(urls.map(url => fetch(url)))
+  const data = await Promise.all(responses.map(res => res.json()))
+
+  const proselytingAreas = data.map(item => item.proselytingAreas ? item : {})
+  const newPeople = peopleArr.map((person, index) => {
+    return {
+      ...person,
+      timestamp: new Date(person.createDate).getTime(),
+      proselytingArea: proselytingAreas[index]
+    }
+  }).filter(person => person.proselytingArea?.bestOrgId === orgId)
+  
+  return newPeople.sort((a, b) => b.timestamp - a.timestamp).map(person => {
+    return `
+    <div class="listItem">
+      <a href="${'https://referralmanager.churchofjesuschrist.org/person/' + person.personGuid}">${person.firstName}</a><br />
+      <span><strong>Create Date:</strong> ${timestampToDate(person.timestamp)}</span><br />
+      <span><strong>Address:</strong> ${person.address}</span><br />
+      <span><strong>Suggested Ward:</strong> ${person.proselytingArea.organizations[0].name}</span><br />
+      <span><strong>Suggested Area:</strong> ${person.proselytingArea.proselytingAreas[0].name}</span>
+    </div>`
+  })
+}
+
+const realData = await fetchByOrgId(peopleArr, 31859)
+
 preElement.innerHTML = realData
